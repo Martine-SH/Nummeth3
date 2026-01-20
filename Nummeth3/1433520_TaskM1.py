@@ -1,13 +1,4 @@
 # -*- coding: utf-8 -*-
-
-"""
-DO NOT EDIT THIS ONE! 
-Use the one in the map Nummeth3
-"""
-
-
-
-
 """
 Joost Gerlagh, 1433520
 Numerical Methods
@@ -399,7 +390,7 @@ Crank-Nicholson doesn't work for shit either. Fuckin awesome
 Was also a me issue (switched A and B). But still does not work for shit...
 
 RK4 seems to be stable (and following Theory quite well) for L = 1 m, nx = 10**2,
-nt = 10**3 and T0 = 200 K, T1 = 3 K, κ = 1-**-3 for ratio < 0.7 (Δt < 0.07 s).
+nt = 10**3 and T0 = 200 K, T1 = 3 K, κ = 10**-3 for ratio < 0.7 (Δt < 0.07 s).
 AB seems, at the same conditions, to be stable for ratio \geq 0.5 (Δt = 0.05)
 It doesn't necessarily agree with the Theory, contrary to most other methods.
 EF ratio \geq 0.5 as well, agreeing quite well with Theory in that range too.
