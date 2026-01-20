@@ -8,12 +8,23 @@ Part 3, Task M1
 import numpy as np
 from scipy import special
 import matplotlib.pyplot as plt
+#%%
+"Git should git gut fr fr"
+# A = np.eye(3) * 5 + np.eye(3, k = 1) * 3
+# B = np.eye(3) * 4 + np.eye(3, k = 1) * 2
+# E = [5, 6, 7]
+# F = A @ E
+# C = A @ B
+# D = B @ A
+# A[0, 0], A[0,1] = 1, 0
+# A[-1,-2], A[-1, -1] = 0, 1
+
 
 #%% Defining necessary constants
 
 class PhysConstants:
     def __init__(self):
-        self.Kappa  = 10**-8 # Thermal diffusion coefficient (m^2/s)
+        self.Kappa  = 10**-3 # Thermal diffusion coefficient (m^2/s)
         self.T0     = 200 # K, initial temperature rod
         self.T1     = 300 # K, temperature of rod at x = 0 during simulation 
 
@@ -78,7 +89,7 @@ def dT_dt_CD(Tn, nx, dx, kappa):
 # similar array for the next timestep.
 def Adams_Bashforth(Ts, nx, dx, dt, kappa, dT_dt):
     [T_prev, Tn] = Ts
-    T_new = Tn + dt / 2 * (3 * dT_dt(Tn, nx, dx, kappa) + dT_dt(T_prev, nx, dx, kappa))
+    T_new = Tn + dt / 2 * (3 * dT_dt(Tn, nx, dx, kappa) - dT_dt(T_prev, nx, dx, kappa))
     return [Tn, T_new]
 
 def Leap_frog(Ts, nx, dx, dt, kappa, dT_dt):
@@ -87,18 +98,20 @@ def Leap_frog(Ts, nx, dx, dt, kappa, dT_dt):
     return [Tn, T_new]
 
 # The following three functions just need Tn, and "simply" return T_new (= T_(n+1))
-# TODO: write Crank_Nicholson function
+
 def Crank_Nicholson(Tn, nx, dx, dt, kappa, dT_dt):
+    # Note: I accidentally switched the names of A and B compared to the LN
     C2 = kappa * dt / (2 * dx**2)
-    A = np.eye(nx, nx) * (1 - C2) + np.eye(nx, nx, k = -1) * C2 + np.eye(nx, nx, k = 1) * C2
-    A[0, :1] = [1, 0]
-    A[-1, -1:] = [0,1]
-    B = np.eye(nx, nx) * (1 + C2) - np.eye(nx, nx, k = -1) * C2 - np.eye(nx, nx, k = 1) * C2
-    B[0, :1] = [1, 0]
-    B[-1, -1:] = [0,1]
-    A_inv = np.linalg.inv(A)
-    C = A_inv @ B
-    T_new = np.dot(C, Tn)
+    A = np.eye(nx) * (1 - 2 * C2) + np.eye(nx, k = -1) * C2 + np.eye(nx, k = 1) * C2
+    A[0, 0], A[0,1] = 1, 0
+    A[-1,-2], A[-1, -1] = 0, 1
+    B = np.eye(nx) * (1 + 2 * C2) - np.eye(nx, k = -1) * C2 - np.eye(nx, k = 1) * C2
+    B[0, 0], B[0,1] = 1, 0
+    B[-1, -2], B[-1, -1] = 0, 1
+    B_inv = np.linalg.inv(B)
+    C = B_inv @ A
+    # T_new = np.dot(C, Tn)
+    T_new = C @ Tn
     return T_new
     
 def Euler_forward(Tn, nx, dx, dt, kappa, dT_dt):
@@ -161,10 +174,16 @@ def Task1_caller(L, nx, TotalTime, dt, TimeSteppingMethod,
     # nt = N + 1)
     dx = L/nx # (constant) difference between two consecutvie grid points
     
+
+    Result_theory = Theory(Time, Xaxis, nt, nx, PhysC.T0, PhysC.T1, PhysC.Kappa)
+    # The theoretical solution can just be calculated directly 
+    # for every pair (x, t)
+    
+    Var = np.zeros(nt)
+    
     if TimeSteppingMethod == "Theory":
-        Result = Theory(Time, Xaxis, nt, nx, PhysC.T0, PhysC.T1, PhysC.Kappa)
-        # The theoretical solution can just be calculated directly 
-        # for every pair (x, t)
+        return Time, Xaxis, Result_theory, Var
+        
     else:
         Result = np.zeros((nt, nx)) 
         # This will be the array of temperatures, where in the end
@@ -191,33 +210,37 @@ def Task1_caller(L, nx, TotalTime, dt, TimeSteppingMethod,
             # for LF and AB
             T_prev = Tn.copy()
             Tn = Euler_forward(Tn, nx, dx, dt, PhysC.Kappa, dT_dt)
-            Result[1] = Tn
+            Result[1] = Tn.copy()
+            Var[1] = np.var(Tn - Result_theory[1], mean = 0).copy()
             
             for n in range(2, nt):
                 [T_prev, Tn] = integrator([T_prev, Tn], nx, dx, dt,
                                           PhysC.Kappa, dT_dt)
                 Result[n] = Tn.copy()
-        
+                Var[n] = np.var(Tn - Result_theory[n], mean = 0).copy()
         else:        
             if TimeSteppingMethod == "EF":
                 integrator = Euler_forward
-            # elif TimeSteppingMethod == "CN":
-            #     integrator = Crank_Nicholson
-            if TimeSteppingMethod == "RK4":
+            elif TimeSteppingMethod == "CN":
+                integrator = Crank_Nicholson
+            elif TimeSteppingMethod == "RK4":
                 integrator = Runge_Kutta4
+                
             for n in range(1, nt):
                 Tn = integrator(Tn, nx, dx, dt, PhysC.Kappa, dT_dt)
                 Result[n] = Tn.copy()
-    return Time, Xaxis, Result   
+                Var[n] = np.var(Tn - Result_theory[n], mean = 0).copy()
+                
+        return Time, Xaxis, Result, Var
 
 #%% Setting paramaters for simulation
 #  TODO Let's for now consider a ... m rod split into ... equal parts, such that:
 L = 1 # m
-nx = 10**3
+nx = 10**2
 dx = L / nx # m
 # TODO Now we use the fact that we fix the ratio(s) κ * Δt / Δx^2
-ratios = np.array([0.5])
-# ratios = np.linspace(0.01, 0.1, num = 10)
+ratios = np.array([0.25])
+# ratios = np.linspace(0.25, 0.5, num = 6)
 # From that we calculate the Δt's
 dts = ratios * dx**2 / PhysConstants().Kappa
 # TODO Now let's say we want to consider a ... amount timesteps also
@@ -227,51 +250,125 @@ TotalTime = nt * dts
 #%% Running a simulation
 #TODO Later this also gotta be for 2 Δt's and also for different derivatives ig
 All_Results = {} # We create a dictionary to add all our simulation results to
+# T_th = np.array([])
 for j, dt in enumerate(dts):
     for DiffMethod in ["CD"]: # TODO add SP
-        for TimeSteppingMethod in ["LF"]: # ["Theory", "EF", "AB", "LF", "RK4"]:
-            Time, Xaxis, Result = Task1_caller(L, nx, TotalTime[j], dt, TimeSteppingMethod)
+        for TimeSteppingMethod in ["Theory", "EF", "AB", "RK4", "CN"]: #, "LF", "CN"]:
+            Time, Xaxis, Result, Var = Task1_caller(L, nx, TotalTime[j], dt,
+                                               TimeSteppingMethod, DiffMethod)
             All_Results[(TimeSteppingMethod, dt, DiffMethod)] = {
                                              "Time": Time,
                                              "Xaxis": Xaxis,
-                                             "Temperatures": Result
+                                             "Temperatures": Result,
+                                             "Variances": Var
                                              }
+            # if TimeSteppingMethod == "Theory":
+            #     T_th = [dt, Result]
+
 
 #%% Plotting the solutions
 # Plotting the entire solution would take a lot of time and is also hard to visualize.
 # So I wrote a function that makes Ng graphs, with constant time intervals between
 # them (and including t = 0 and t = TotalTime)
-def T_x_plot(nt, dt, Ng, Results):
+def T_x_plot(Results, Ng, nt, TSM = False, dt = False, DM = False):
     # dt, nt and DiffMethod are the same variables as before
+    # If no input is given for dt or DM, the plot is made for all different 
+    # possibilities. If a sepcific value/function is given, only that one is displayed.
+    # Currently, only one of these inputs can be given unfortunately. Working on it.
     # Ng is the number of graphs the function should make
     # Results should be a dictionary featuring the Results of the simulations
     # in principal this will always be All_Results
-    ngs = np.rint(np.linspace(0, nt - 1, num = Ng))
+    ngs = np.rint(np.linspace(0, nt - 1, num = Ng + 1))
+    ngs = ngs[1:]
     # ngs will be the list of indices of time for which we will plot T(t_(ng); x)
-    # This will at least include ng = 0 and ng = Nt (i.e. the first and final steps)
-    # The nt - 1 is there because the indices of a list with nt units go from
-    # 0 to nt - 1
+    # This will at least include ng = 0 and ng = Nt (i.e. the first and final steps).
+    # Although we cut out the initial situation, as that is non-interesting.
+    # The nt - 1 is there because the indices of an array with nt elements go from
+    # 0 to nt - 1.
     for ng in ngs:
         plt.figure()
-        for (TimeSteppingMethod, dt, DiffMethod), Result in Results.items():
-            Time = Result["Time"]
-            Xaxis = Result["Xaxis"]
-            Temperatures = Result["Temperatures"]
-            tg = Time[int(ng)]
-            Tgs = Temperatures[int(ng)]
-            plt.plot(Xaxis, Tgs, '.', label = f'Int = {TimeSteppingMethod},'
-                                              f'DM = {DiffMethod}')
+        for (TimeSteppingMethod, dtg, DiffMethod), Result in Results.items():
+            if dt == DM and dt == TSM: # i.e. if all are False and no input is given
+                Time = Result["Time"]
+                Xaxis = Result["Xaxis"]
+                Temperatures = Result["Temperatures"]
+                tg = Time[int(ng)]
+                Tgs = Temperatures[int(ng)]
+                plt.plot(Xaxis, Tgs, '.', label = f'TSM = {TimeSteppingMethod},'
+                                                  f'DM = {DiffMethod}, '
+                                                  f'$Δt$ = {dtg:.2e} s')
+                plt.title(f'$T(t = {tg:.2e}, x)$')
+            
+            elif TSM != False and TimeSteppingMethod == TSM:
+                Time = Result["Time"]
+                Xaxis = Result["Xaxis"]
+                Temperatures = Result["Temperatures"]
+                tg = Time[int(ng)]
+                Tgs = Temperatures[int(ng)]
+                plt.plot(Xaxis, Tgs, '.', label = f'DM = {DiffMethod}, '
+                                                  f'$Δt$ = {dtg:.2e} s')
+                plt.title(f'$T(t = {tg:.2e}, x)$, TSM = {TSM}')
+            
+            elif dt != False and dtg == dt:
+                Time = Result["Time"]
+                Xaxis = Result["Xaxis"]
+                Temperatures = Result["Temperatures"]
+                tg = Time[int(ng)]
+                Tgs = Temperatures[int(ng)]
+                plt.plot(Xaxis, Tgs, '.', label = f'Int = {TimeSteppingMethod},'
+                                                  f'DM = {DiffMethod}')
+                plt.title(f'$T(t = {tg:.2e}, x), Δt = {dt:.2e}$ s')
+            
+            elif DM != False and DiffMethod == DM:
+                Time = Result["Time"]
+                Xaxis = Result["Xaxis"]
+                Temperatures = Result["Temperatures"]
+                tg = Time[int(ng)]
+                Tgs = Temperatures[int(ng)]
+                plt.plot(Xaxis, Tgs, '.', label = f'Int = {TimeSteppingMethod},'
+                                                  f'$Δt$ = {dtg:.2e} s')
+                plt.title(f'$T(t = {tg:.2e}, x)$, DM = {DM}')
+        
         plt.xlim(0, L)
         # plt.ylim(PhysConstants().T0, PhysConstants().T1)
         plt.grid()
         plt.xlabel('$x$ (m)')
         plt.ylabel('T (K)')
         plt.legend()
-        plt.title(f'$T(t = {tg:.2e}, x)$ ($Δt$ = {dt} s)')
         plt.show()
 
-for dt in dts:
-    T_x_plot(nt, dt, 2, All_Results)
+# for dtg in dts:
+#     T_x_plot(All_Results, 1, nt, dt = dtg)
+#%%
+def plot_Var(Results):
+    plt.figure()
+    for (TimeSteppingMethod, dt, DiffMethod), Result in Results.items():
+        Time = Result["Time"]
+        Variances = Result["Variances"]
+        plt.plot(Time, Variances, label = f'TMS = {TimeSteppingMethod}, $Δt$ = {dt} s')
+        plt.xlabel("$t$ (s)")
+        plt.ylabel("$σ^2$")
+        plt.legend()
+        plt.grid()
+        plt.xlim(0, Time[-1])
+    plt.show()
+        
+plot_Var(All_Results)
+#%% 
+# Delta = np.array([])
+# for (TimeSteppingMethod, dt, DiffMethod), Result in All_Results.items():
+#     if TimeSteppingMethod != "Theory":
+#         T_TMS = Result["Temperatures"]
+#         for dt_th, T_theory in T_th:
+#             if dt_th == dt:
+#                 DeltaT = T_th[-1] - T_TMS
+#                 sig = np.zeros(nt)
+#                 var = np.zeros(nt)
+#                 for n, DeltaTn in enumerate(DeltaT):
+#                     var_n = np.var(DeltaTn)
+#                     sig_n = np.sqrt(var_n)
+#                     sig[n] = sig_n
+#                     var[n] = var_n
 
 #%%
 """
@@ -283,10 +380,35 @@ the others are either just 200 constantly or suddenly jump to very weird values.
 Even when that problem is fixed, LF still explodes...
 Tried ratios = np.linspace(0.1, 0.3, num = 5), did not help...
 ratios = np.linspace(0.01, 0.1, num = 10) didn't either
-"""
-"""
+
 Now for L = 1 m, nx = 10**3, ratio = 0.5 (dt = 50 s), nt = 10**5,
 and T0 = 200 K, T1 = 3 K and κ = 10^-8 (a little more realistic value)
 we see that EF and AB nicely overlap with the analytical solution, whereas RK4
 produces a somehwat similar, but different, curve. LF still explodes.
+
+Crank-Nicholson doesn't work for shit either. Fuckin awesome
+Was also a me issue (switched A and B). But still does not work for shit...
+
+RK4 seems to be stable (and following Theory quite well) for L = 1 m, nx = 10**2,
+nt = 10**3 and T0 = 200 K, T1 = 3 K, κ = 1-**-3 for ratio < 0.7 (Δt < 0.07 s).
+AB seems, at the same conditions, to be stable for ratio \geq 0.5 (Δt = 0.05)
+It doesn't necessarily agree with the Theory, contrary to most other methods.
+EF ratio \geq 0.5 as well, agreeing quite well with Theory in that range too.
+For CN I need to make the ratio ridiculously small to yield somehwat physical values..
+Thing is that a small ratio also means a small TotalTime, so I it's safe to say
+CN just isn't stable.
+Basically same for LF. It only becomes somewhat stable when you make Δt so small 
+that it barely does anything.
+Nevermind I made a mistaky, CN seems to work after all. In fact, it seems to be 
+the most stable of all. It seems to be stable for ratios up to 5 (Δt = 0.5 s),
+although at that point Theory and simulation become harder to compare:
+for the simulations we fixed the end at x = x_nx to be T0, which we didn't do in
+the Theoretical solution. So as the ratios increase, Δt increases, TotalTime increases,
+and thus also T(x = x_nx, t = t_nt). After ratio \approx 3, the shape of the 
+CN simulation at t = t_nt barely seems to change,in fact appearing almost linear.
+
+Plotting everything for ratios 0.25 and 0.5 with the other parameters as above, 
+shows that all methods seem to agree relatively well with Theory, except for AB.
+
+There waws a mistake in AB, that is fixed. It's now stable until raio is 0.25
 """
