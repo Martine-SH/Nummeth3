@@ -9,7 +9,7 @@ import numpy as np
 from scipy import special
 import matplotlib.pyplot as plt
 #%%
-"Git should giter  gut fr fr"
+"Git should giterer gut fr fr"
 # A = np.eye(3) * 5 + np.eye(3, k = 1) * 3
 # B = np.eye(3) * 4 + np.eye(3, k = 1) * 2
 # E = [5, 6, 7]
