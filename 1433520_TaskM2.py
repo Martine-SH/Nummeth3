@@ -1,0 +1,279 @@
+# -*- coding: utf-8 -*-
+"""
+Joost Gerlagh, 1433520
+Numerical Methods
+Part 3, Task M1
+"""
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+#%% Defining physical constanus
+class PhysConstants:
+    def __init__(self):
+        self.y0     = 1       # no-signal value #??? Why is this here?
+        self.c      = 5       # advection velocity (m/s)
+        self.Ag     = 0.5       # Gaussian wave amplitude ()
+        self.sigmag = 0.2        # Gaussian wave width (m)
+        self.Anot   = 0.5       # Molenkamp triangle height ()
+        self.W      = 0.2       # Molenkamp triangle width (m)
+# you may add your own constanus if you wish
+
+#%% Theoretical solutions/Initialisations
+
+# Calculates u(x, t) for all x at fixed t
+# Can also be used for Initialisations
+def u_Gauss(xs, t, L, c, Ag, sigmag):
+    u = Ag * np.exp(-((xs - c * t - L/2) / sigmag)**2)
+    return u
+
+def u_Molenkamp(xs, t, nx, dx, L, A0, W):
+     n1 = int(0.5 * W / dx) 
+     n2 = int(W / dx)
+     # as xs[n] = n * dx, this means that x[n1] < 0.5 * W < xs[n1 + 1]
+     # and [n2] < W < xs[n2 + 1]
+     u = np.zeros(nx)
+     u[:n1 + 1] = 2 * A0 * xs[:n1 + 1] / W
+     u[n1 + 1 : n2 + 1] = 2 * A0 * (1 - xs[n1 + 1 : n2 + 1] / W)
+     return u
+
+
+# Generates a 2D array u of shape (nt, nx), such that u[n, i] gives u at
+# timestep n at grid point (with index) i.
+def Theory_Gauss(ts, xs, nt, nx, L, c, Ag, sigmag):
+    us = np.zeros((nt, nx))
+    for n, t in enumerate(ts):
+        us[n] = u_Gauss(xs, t, c, L, Ag, sigmag)
+    return us
+#%% Defining time derivative functions
+
+# We use that du/dt = -c * du/dx
+def du_dt_CD(un, nx, dx, c):
+    du_dx = np.zeros(nx)
+    du_dx[1:-1] = (un[2:] + un[:-2]) / (2 * dx)
+    #??? What about 0 and nx?
+    du_dt = -c * du_dx
+    return du_dt
+
+# def du_dt_SP():
+
+#%% Defining integrating functions 
+# In the following functions, I used the following conventions:
+    # un: an array of the current temperatures, i.e. at timestep n
+    # u_prev: "         " previous "                           " n - 1
+    # u_new: "          " next "                               " n + 1
+# Note that all the functions take both u_prev and un as input, even though most
+# use just the one. This is such that all functions have the same input, which 
+# will be make it easier to write out a more general simulation function later.
+# Also note that while Theory immediately yields the full soltion, these 
+# functions all just yield intermediate solutions
+
+# The following two functions need u_prev. 
+# So they takes as input us, an array of the form [u_prev, un], and return a 
+# similar array for the next timestep.
+def Adams_Bashforth(us, nx, dx, dt, c, du_dt):
+    [u_prev, un] = us
+    u_new = un + dt / 2 * (3 * du_dt(un, nx, dx, c) + du_dt(u_prev, nx, dx, c))
+    return [un, u_new]
+
+def Leap_frog(us, nx, dx, dt, c, du_dt):
+    [u_prev, un] = us
+    u_new = u_prev + 2 * dt * du_dt(un, nx, dx, c)
+    return [un, u_new]
+
+# The following three functions just need un, and "simply" return u_new (= u_(n+1))
+# TODO: write Crank_Nicholson function
+# The following three functions just need Tn, and "simply" return T_new (= T_(n+1))
+# TODO: write Crank_Nicholson function
+def Crank_Nicholson(un, nx, dx, dt, c, du_dt):
+    # Note: I accidewntally swithced the names of A and B compafred to the LN
+    C1 = c * dt / (4 * dx)
+    A = np.eye(nx) * (1 - C1) + np.eye(nx, k = -1) * C1 + np.eye(nx, k = 1) * C1
+    A[0, 0], A[0,1] = 1, 0
+    A[-1,-2], A[-1, -1] = 0, 1
+    B = np.eye(nx) * (1 + C1) - np.eye(nx, k = -1) * C1 - np.eye(nx, k = 1) * C1
+    B[0, 0], B[0,1] = 1, 0
+    B[-1, -2], B[-1, -1] = 0, 1
+    B_inv = np.linalg.inv(B)
+    C = B_inv @ A
+    u_new = np.dot(C, un)
+    return u_new
+        
+    
+def Euler_forward(un, nx, dx, dt, c, du_dt):
+    u_new = un + dt * du_dt(un, nx, dx, c)
+    return u_new
+
+def Runge_Kutta4(un, nx, dx, dt, c, du_dt):
+    # Note that du/dt = -c * du/dx, which does not explicitly depend on time,
+    # which is why we don't see any of the different argumenus of time in the k's
+    k1 = du_dt(un, nx, dx, c)
+    k2 = du_dt(un + dt / 2 * k1, nx, dx, c)
+    k3 = du_dt(un + dt / 2 * k2, nx, dx, c)
+    k4 = du_dt(un + dt * k3, nx, dx, c)
+    u_new = un + dt / 6 * (k1 + 2 * (k2 + k3) + k4)
+    return u_new
+
+#%% Defining a simulation function
+
+def Task2_caller(L, nx, TotalTime, dt, TimeSteppingMethod, Initialisation,
+                 DiffMethod="CD"):
+    # The mandatory input is:
+    # L                   Length of domain to be modelled (m)
+    # nx                  Number of gridpoint in the model domain
+    # TotalTime           Total length of the simulation (s)
+    # dt                  Length of each time step (s)
+    # TimeSteppingMethod  Could be:
+    #  "Theory"             Theoretical solution
+    #  "AB"                 Adams-Bashforth
+    #  "CN"                 Crank-Nicholson
+    #  "EF"                 Euler Forward
+    #  "LF"                 Leaf Frog
+    #  "RK4"                Runge-Kutta 4
+    # Initialization      Could be:
+    #  "GaussWave"          Gauassian Wave
+    #  "Molenkamp"          Molenkamp triangle
+    #
+    # The optional input is:
+    # DiffMethod  Method to determine the 1st order spatial derivative
+    #   Default = "CD"    Central differences
+    #    Option = "PS"    Pseudo spectral
+    # 
+    # The output is:
+    # Time        a 1-D array (length nt) with time values considered
+    # Xaxis       a 1-D array (length nx) with x-values used
+    # Result      a 2-D array (size [nx, nt]), with the resulus of the routine    
+    # You may add extra output after these three
+    
+    PhysC = PhysConstants()       # load physical constanus in `self`-defined variable PhysC
+    # (start code)
+    
+    # (start code)
+    if DiffMethod == 'CD':
+        du_dt = du_dt_CD
+    # elif DiffMethod == 'PS':
+    #     du_dt = du_dt_PS
+    
+    Time = np.arange(0, TotalTime, dt) 
+    # array of evenly spaced times with requested difference dt
+    Xaxis = np.linspace(0, L, nx, endpoint = False) 
+    # array of evenly spaced loactions with requested length nx
+    nt = len(Time) 
+    # number of timesteps we consider (NB if we integrate until t_N = Ndt, 
+    # nt = N + 1)
+    dx = L/nx # (constant) difference between two consecutvie grid points
+    
+    if TimeSteppingMethod == "Theory":
+        Result = Theory_Gauss(Time, Xaxis, nt, nx, L, PhysC.c, PhysC.Ag, PhysC.sigmag)
+        # The theoretical solution can just be calculated directly 
+        # for every pair (x, t)
+    else:
+        Result = np.zeros((nt, nx)) 
+        # This will be the array of temperatures, where in the end
+        # Results[n,i] will give T at time t_n (= n*dt) and location x_i (= i*dx)        
+ 
+        if Initialisation == "GaussWave":
+            un = u_Gauss(Xaxis, 0, L, PhysC.c, PhysC.Ag, PhysC.sigmag)
+        elif Initialisation == "Molenkamp":
+            un = u_Molenkamp(Xaxis, 0, nx, dx, L, PhysC.Anot, PhysC.W)
+        # The wave at t = 0. Throughout the simulation, un will be u(t = t_n)
+        
+        Result[0] = un.copy()
+
+        if TimeSteppingMethod ==  "LF" or TimeSteppingMethod == "AB":
+            
+            if TimeSteppingMethod == "LF":
+                integrator = Leap_frog
+            elif TimeSteppingMethod == "AB":
+                integrator = Adams_Bashforth
+            # We do the first step using forward Euler. We already define T_prev
+            # with Tn at t = 0, as we will need both T_(n-1) (= T_prev) and Tn
+            # for LF and AB
+            u_prev = un.copy()
+            un = Euler_forward(un, nx, dx, dt, PhysC.c, du_dt)
+            Result[1] = un
+            
+            for n in range(2, nt):
+                [u_prev, un] = integrator([u_prev, un], nx, dx, dt, PhysC.c, du_dt)
+                Result[n] = un.copy()
+        
+        else:        
+            if TimeSteppingMethod == "EF":
+                integrator = Euler_forward
+            elif TimeSteppingMethod == "CN":
+                integrator = Crank_Nicholson
+            elif TimeSteppingMethod == "RK4":
+                integrator = Runge_Kutta4
+            for n in range(1, nt):
+                un = integrator(un, nx, dx, dt, PhysC.c, du_dt)
+                Result[n] = un.copy()
+    
+    
+    return Time, Xaxis, Result  
+
+
+#%% Setting paramaters for simulation
+#  TODO Let's for now consider a ... m domain split into ... equal parts, such that:
+L = 1 # m
+nx = 10**2
+dx = L / nx # m
+# TODO Now we use the fact that we fix the ratio(s) c * Δt / Δx
+ratios = np.array([0.5]) 
+# From that we calculate the Δt's
+dts = ratios * dx / PhysConstants().c
+# TODO Now let's say we want to consider a ... amount timesteps also
+nt = 10**3
+TotalTime = nt * dts
+
+#%% Running a simulation
+#TODO Later this also gotta be for 2 Δt's and also for different derivatives ig
+All_Results = {} # We create a dictionary to add all our simulation results to
+for j, dt in enumerate(dts):
+    for DiffMethod in ["CD"]: # TODO add SP
+        for TimeSteppingMethod in ["Theory", "EF", "AB", "LF", "RK4", "CN"]:
+            for Initialisation in ["GaussWave", "Molenkamp"]:
+                Time, Xaxis, Result = Task2_caller(L, nx, TotalTime[j], dt, 
+                                                   TimeSteppingMethod, Initialisation,
+                                                   DiffMethod)
+                All_Results[(TimeSteppingMethod, dt, DiffMethod, Initialisation)] = {
+                                                 "Time": Time,
+                                                 "Xaxis": Xaxis,
+                                                 "Wave": Result
+                                                 }
+
+def u_x_plot(Results, Ng, nt, Init): #, TSM = False, dt = False, DM = False):
+    # dt, nt and DiffMethod are the same variables as before
+    # If no input is given for dt or DM, the plot is made for all different 
+    # possibilities. If a sepcific value/function is given, only that one is displayed.
+    # Currently, only one of these inputs can be given unfortunately. Working on it.
+    # Ng is the number of graphs the function should make
+    # Results should be a dictionary featuring the Results of the simulations
+    # in principal this will always be All_Results
+    ngs = np.rint(np.linspace(0, nt - 1, num = Ng + 1))
+    # ngs = ngs[1:]
+    # ngs will be the list of indices of time for which we will plot T(t_(ng); x)
+    # This will at least include ng = 0 and ng = Nt (i.e. the first and final steps).
+    # Although we cut out the initial situation, as that is non-interesting.
+    # The nt - 1 is there because the indices of a list with nt units go from
+    # 0 to nt - 1
+    for ng in ngs:
+        plt.figure()
+        for (TimeSteppingMethod, dtg, DiffMethod, Initialisation), Result in Results.items():
+            if Initialisation == Init:
+                Xaxis = Result["Xaxis"]
+                us = Result["Wave"]
+                tg = Time[int(ng)]
+                ugs = us[int(ng)]
+                plt.plot(Xaxis, ugs, '.', label = f'TSM = {TimeSteppingMethod},'
+                                                  f'DM = {DiffMethod}, '
+                                                  f'$Δt$ = {dtg:.2e} s')
+                plt.title(f'$u(t = {tg:.2e}, x)$, Init = {Initialisation}')
+        plt.xlim(0, L)
+        # plt.ylim(PhysConstants().T0, PhysConstants().T1)
+        plt.grid()
+        plt.xlabel('$x$ (m)')
+        plt.ylabel('$u$')
+        plt.legend()
+        plt.show()
+
+u_x_plot(All_Results, 2, nt, Init = "GaussWave")
