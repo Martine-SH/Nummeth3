@@ -211,13 +211,13 @@ def Task1_caller(L, nx, TotalTime, dt, TimeSteppingMethod,
             T_prev = Tn.copy()
             Tn = Euler_forward(Tn, nx, dx, dt, PhysC.Kappa, dT_dt)
             Result[1] = Tn.copy()
-            Var[1] = np.var(Tn - Result_theory[1], mean = 0).copy()
+            Var[1] = np.std(Tn - Result_theory[1], mean = 0).copy()
             
             for n in range(2, nt):
                 [T_prev, Tn] = integrator([T_prev, Tn], nx, dx, dt,
                                           PhysC.Kappa, dT_dt)
                 Result[n] = Tn.copy()
-                Var[n] = np.var(Tn - Result_theory[n], mean = 0).copy()
+                Var[n] = np.std(Tn - Result_theory[n], mean = 0).copy()
         else:        
             if TimeSteppingMethod == "EF":
                 integrator = Euler_forward
@@ -229,7 +229,7 @@ def Task1_caller(L, nx, TotalTime, dt, TimeSteppingMethod,
             for n in range(1, nt):
                 Tn = integrator(Tn, nx, dx, dt, PhysC.Kappa, dT_dt)
                 Result[n] = Tn.copy()
-                Var[n] = np.var(Tn - Result_theory[n], mean = 0).copy()
+                Var[n] = np.std(Tn - Result_theory[n], mean = 0).copy()
                 
         return Time, Xaxis, Result, Var
 
