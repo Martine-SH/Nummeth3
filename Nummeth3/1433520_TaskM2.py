@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Joost Gerlagh, 1433520
+Joost Gerlagh, 1433520; Martine Hoogenraad, 2608618
 Numerical Methods
-Part 3, Task M1
+Part 3, Task M2
 """
 
 import numpy as np

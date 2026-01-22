@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-Joost Gerlagh, 1433520; Martine Hoogenraad, 2608618
+Joost Gerlagh, 1433520; Martine Hoogenraad 2608618
 Numerical Methods
-Part 3, Task M1
+Part 3, Task M3
 """
-
 import numpy as np
 from scipy import special
 import matplotlib.pyplot as plt
@@ -369,46 +368,3 @@ plot_Var(All_Results)
 #                     sig_n = np.sqrt(var_n)
 #                     sig[n] = sig_n
 #                     var[n] = var_n
-
-#%%
-"""
-First look, with L = 1 m, nx = 10**2, ratio = 0.5 (dt = 5 * 10*-5 s), nt = 10**5,
-and T0 = 200 K, T1 = 3 K and κ = 1 m^2/s (I think, but I forgor tbh)
-shows that RK4, AB and EF fully overlap, while significantly deviating from the 
-theoretical curve. LF does weird. T(x = 0) alternates between 200 and 300, while
-the others are either just 200 constantly or suddenly jump to very weird values...
-Even when that problem is fixed, LF still explodes...
-Tried ratios = np.linspace(0.1, 0.3, num = 5), did not help...
-ratios = np.linspace(0.01, 0.1, num = 10) didn't either
-
-Now for L = 1 m, nx = 10**3, ratio = 0.5 (dt = 50 s), nt = 10**5,
-and T0 = 200 K, T1 = 3 K and κ = 10^-8 (a little more realistic value)
-we see that EF and AB nicely overlap with the analytical solution, whereas RK4
-produces a somehwat similar, but different, curve. LF still explodes.
-
-Crank-Nicholson doesn't work for shit either. Fuckin awesome
-Was also a me issue (switched A and B). But still does not work for shit...
-
-RK4 seems to be stable (and following Theory quite well) for L = 1 m, nx = 10**2,
-nt = 10**3 and T0 = 200 K, T1 = 3 K, κ = 10**-3 for ratio < 0.7 (Δt < 0.07 s).
-AB seems, at the same conditions, to be stable for ratio \geq 0.5 (Δt = 0.05)
-It doesn't necessarily agree with the Theory, contrary to most other methods.
-EF ratio \geq 0.5 as well, agreeing quite well with Theory in that range too.
-For CN I need to make the ratio ridiculously small to yield somehwat physical values..
-Thing is that a small ratio also means a small TotalTime, so I it's safe to say
-CN just isn't stable.
-Basically same for LF. It only becomes somewhat stable when you make Δt so small 
-that it barely does anything.
-Nevermind I made a mistaky, CN seems to work after all. In fact, it seems to be 
-the most stable of all. It seems to be stable for ratios up to 5 (Δt = 0.5 s),
-although at that point Theory and simulation become harder to compare:
-for the simulations we fixed the end at x = x_nx to be T0, which we didn't do in
-the Theoretical solution. So as the ratios increase, Δt increases, TotalTime increases,
-and thus also T(x = x_nx, t = t_nt). After ratio \approx 3, the shape of the 
-CN simulation at t = t_nt barely seems to change,in fact appearing almost linear.
-
-Plotting everything for ratios 0.25 and 0.5 with the other parameters as above, 
-shows that all methods seem to agree relatively well with Theory, except for AB.
-
-There waws a mistake in AB, that is fixed. It's now stable until raio is 0.25
-"""
