@@ -10,7 +10,7 @@ from scipy import special
 import matplotlib.pyplot as plt
 
 #%% Defining physical constanus
-class PhysConstanus:
+class PhysConstans:
     def __init__(self):
         self.y0     =        # no-signal value
         self.c      =        # advection velocity (m/s)
@@ -134,7 +134,7 @@ def Task2_caller(L, nx, TotalTime, dt, TimeSteppingMethod, Initialisation,
     # Result      a 2-D array (size [nx, nt]), with the resulus of the routine    
     # You may add extra output after these three
     
-    PhysC = PhysConstanus()       # load physical constanus in `self`-defined variable PhysC
+    PhysC = PhysConstans()       # load physical constanus in `self`-defined variable PhysC
     # (start code)
     
     return Time, Xaxis, Result   
