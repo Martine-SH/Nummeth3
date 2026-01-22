@@ -23,50 +23,28 @@ import matplotlib.pyplot as plt
 
 class PhysConstants:
     def __init__(self):
-        self.Kappa  = 10**-3 # Thermal diffusion coefficient (m^2/s)
-        self.T0     = 200 # K, initial temperature rod
+        self.h      = 6.626 *10**(-34)/(2*np.pi) # plancks constant (J s)
+        self.psi0     = 200 # K, initial temperature rod
         self.T1     = 300 # K, temperature of rod at x = 0 during simulation 
 
 
 # Throughout the code, I will try and do my best to use i when talking about
 # the index of grid points and n when talking about the index of timesteps
 
-#%% Theoretical solution
-
-# First we define the theoretical solution
-def T_Theory(xs, t, T0, T1, kappa):
-    T = T0 + (T1 - T0) * special.erfc(xs / np.sqrt(4 * kappa * t))
-    if xs[0] == 0 and t == 0: # at (0,0) there appears 0/0 in the exponent.
-    # Luckily, we now what it's supposed to be
-        T[0] = T1
-    return T
-# Note that, given the structure I want the output to have (namely a 2D array 
-# Result of dimensions (nt, nx) where Result[n,i] = T_(n,i)), the function above
-# takes an array of x-values at a (scalar) time t.
-
-# This function takes arrays of the requested times (ts) and locations (xs)
-# and then immediately calculates the temperature at all of them
-# Here, Ts[n, i] will be T(t = t_n, x = x_i)
-# (NB: n and i then start at 0 and end at nx - 1 and nt - 1 respectively)
-def Theory(ts, xs, nt, nx, T0, T1, kappa):
-    Ts = np.zeros((nt, nx))
-    for n,t in enumerate(ts):
-        Ts[n] = T_Theory(xs, t, T0, T1, kappa) 
-    return Ts
 
 #%% Defining a functions that calculates dT/dt
 
 # Here we use our PDE which states dT/dt = κ * d^2T/dx^2
 # We calculate the spatial derivative using finite differences:
 # [d^2T/dx^2]_(n,i) = (T_(n,i+1) - 2T_(n,i) + T_(n, i - 1)) / (Δx)^2
-def dT_dt_CD(Tn, nx, dx, kappa):
-    d2Tdx2 = np.zeros(nx)
-    d2Tdx2[1:-1] = (Tn[2:] - 2 * Tn[1:-1] + Tn[:-2]) / dx**2
+def dpsi_dt_CD(Tn, nx, dx, kappa):
+    d2psidx2 = np.zeros(nx)
+    d2psidx2[1:-1] = (psin[2:] - 2 * psin[1:-1] + psin[:-2]) / dx**2
     # 
     # We fix T(x = 0, t > 0) = T1, so that derivative just stays 0
     # Similar for T(x = L (-dx), t > 0) = T0
     #??? Or we just use T(x = L, t) = T_Theory(x = L, t)
-    dTdt = kappa * d2Tdx2
+    dpsidt = kappa * d2Tdx2
     return dTdt
 
 #TODO: write spectral derivative function
