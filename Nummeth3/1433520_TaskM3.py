@@ -23,16 +23,21 @@ import matplotlib.pyplot as plt
 
 class PhysConstants:
     def __init__(self):
-        self.h      = 1.0545718 *10**(-34) #reduced Planck constant J*s/rad 
-        self.psi0   = 200 # K, initial temperature rod
-        self.psi1   = 300 # K, temperature of rod at x = 0 during simulation
-        self.m      = 9.11 * 10 **(-31) #mass electron in kilogram (kg)
+        self.h      = 1.0545718 *10**-34   #reduced Planck constant J*s/rad 
+        self.m      = 9.11 * 10**-31 #mass electron in kilogram (kg)
+        self.sigma  = 10 **-18 # width of wavefunction (given value)
+        self.omega  = 10 **14  # width of well (chosen value can be changed)
 
 
 # Throughout the code, I will try and do my best to use i when talking about
 # the index of grid points and n when talking about the index of timesteps
 
 
+#%%
+def inital_states(sigma, nx):
+    A = (2*sigma/np.pi)**0.25
+    psi0 = A*np.exp(-2*sigma*nx**2)
+    
 #%% Defining a functions that calculates dT/dt
 
 # Here we use our PDE which states dT/dt = κ * d^2T/dx^2
@@ -44,7 +49,7 @@ def dpsi_dt_CD(psin, nx, dx, h , m):
     # 
     # We fix Psi(x = 0, t > 0) = psi1, so that derivative just stays 0
     # Similar for Psi(x = L (-dx), t > 0) = psi0
-    dpsidt = j * h / (2 * m) * d2psidx2 - j * m * omega**2 * nx**2 * psin[1:-1] / (2 * h)
+    dpsidt = 1j * h / (2 * m) * d2psidx2 - 1j * m * omega**2 * nx**2 * psin[1:-1] / (2 * h)
     return dpsidt
 
 #%% Defining integrating functions 
@@ -131,7 +136,7 @@ def Task3_caller(L, nx, TotalTime, dt, TimeSteppingMethod,
     # Result      a 2-D array (size [nx, nt]), with the results of the routine    
     # You may add extra output after these three
     
-    PhysC = PhysConstanus()       # load physical constanus in `self`-defined variable PhysC
+    PhysC = PhysConstans()       # load physical constanus in `self`-defined variable PhysC
     # (start code)
     
     return Time, Xaxis, Result   
