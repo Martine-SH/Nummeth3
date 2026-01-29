@@ -7,17 +7,6 @@ Part 3, Task M3
 import numpy as np
 from scipy import special
 import matplotlib.pyplot as plt
-#%%
-"Git should giterer gut fr fr"
-# A = np.eye(3) * 5 + np.eye(3, k = 1) * 3
-# B = np.eye(3) * 4 + np.eye(3, k = 1) * 2
-# E = [5, 6, 7]
-# F = A @ E
-# C = A @ B
-# D = B @ A
-# A[0, 0], A[0,1] = 1, 0
-# A[-1,-2], A[-1, -1] = 0, 1
-
 
 #%% Defining necessary constants
 
@@ -47,11 +36,14 @@ def inital_states(sigma, x):
 def dpsi_dt_CD(psi_n, nx, x, dx, h , m, omega):
     d2psidx2 = np.zeros(nx, dtype=complex)
     d2psidx2[1:-1] = (psi_n[2:] - 2 * psi_n[1:-1] + psi_n[:-2]) / dx**2 
-    # 
+    
+    d2psidx2[0] = (psi_n[1] - 2*psi_n[0] + psi_n[-1]) / dx**2
+    d2psidx2[-1] = (psi_n[0] - 2*psi_n[-1] + psi_n[-2]) / dx**2
     # We fix Psi(x = 0, t > 0) = psi1, so that derivative just stays 0
     # Similar for Psi(x = L (-dx), t > 0) = psi0
-    
+    dpsidt = np.zeros(nx, dtype=complex)
     dpsidt = 1j * h / (2 * m) * d2psidx2 - 1j * m * omega**2 * x**2 * psi_n / (2 * h)
+    
     return dpsidt
 
 #%% Defining integrating functions 
@@ -102,7 +94,7 @@ def Euler_forward(psi_n, nx, x, dx, dt, h, m, omega, dpsi_dt):
     psi_new = psi_n + dt * dpsi_dt(psi_n, nx, x, dx, h , m, omega)
     return psi_new
 
-def Runge_Kutta4(psi_n, nx, dx, x, dt, h, m, omega, dpsi_dt):
+def Runge_Kutta4(psi_n, nx, x, dx, dt, h, m, omega, dpsi_dt):
     # Note that dT/dt = κ d^2T/dx^2, which does not explicitly depend on time,
     # which is why we don't see any of the different arguments of time in the k's
     k1 = dpsi_dt(psi_n, nx, x, dx, h , m, omega)
@@ -156,9 +148,13 @@ def Task3_caller(L, nx, TotalTime, dt, TimeSteppingMethod,
     nt = len(Time) 
     # number of timesteps we consider (NB if we integrate until t_N = Ndt, 
     # nt = N + 1)
-    x = np.linspace(-L/2, L/2, nx) 
+
+
     dx = L/nx # (constant) difference between two consecutvie grid points
-    
+    # x based on dx*(i-N/2)
+    x = dx * (np.arange(nx) - nx/2)
+    # x which works like Task1
+    #x = np.linspace(-L/2, L/2, nx) 
     # This will be the array of wavefunctions, where in the end
     # Results[n,i] will give Psi at time t_n (= n*dt) and location x_i (= i*dx) 
     Result = np.zeros((nt, nx), dtype=complex) 
@@ -208,10 +204,10 @@ def Task3_caller(L, nx, TotalTime, dt, TimeSteppingMethod,
 #%% Setting paramaters for simulation
 #  TODO Let's for now consider a ... m rod split into ... equal parts, such that:
 L = 1 # m
-nx = 10**2
+nx = 10**3
 dx = L / nx # m
 # TODO Now we use the fact that we fix the ratio(s) κ * Δt / Δx^2
-ratios = np.array([0.25])
+ratios = np.array([0.05])
 # ratios = np.linspace(0.25, 0.5, num = 6)
 # From that we calculate the Δt's
 dts = ratios * PhysConstants().m * dx**2 / PhysConstants().h
@@ -262,7 +258,7 @@ def Psi_x_plot(Results, Ng, nt, TSM = False, dt = False, DM = False):
             if dt == DM and dt == TSM: # i.e. if all are False and no input is given
                 Time = Result["Time"]
                 Xaxis = Result["Xaxis"]
-                Psi = Result["wavefunctions"]
+                Psi = Result["Wavefunctions"]
                 tg = Time[int(ng)]
                 Psi_gs = Psi[int(ng)]
                 plt.plot(Xaxis, Psi_gs, '.', label = f'TSM = {TimeSteppingMethod},'
@@ -304,8 +300,9 @@ def Psi_x_plot(Results, Ng, nt, TSM = False, dt = False, DM = False):
         # plt.ylim(PhysConstants().T0, PhysConstants().T1)
         plt.grid()
         plt.xlabel('$x$ (m)')
-        plt.ylabel('T (K)')
+        plt.ylabel('Wavefunction')
         plt.legend()
         plt.show()
-
+for dtg in dts:
+    Psi_x_plot(All_Results, 1, nt, dt = dtg)
 

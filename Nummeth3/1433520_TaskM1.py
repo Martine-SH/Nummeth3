@@ -63,6 +63,7 @@ def Theory(ts, xs, nt, nx, T0, T1, kappa):
 def dT_dt_CD(Tn, nx, dx, kappa):
     d2Tdx2 = np.zeros(nx)
     d2Tdx2[1:-1] = (Tn[2:] - 2 * Tn[1:-1] + Tn[:-2]) / dx**2
+    
     # 
     # We fix T(x = 0, t > 0) = T1, so that derivative just stays 0
     # Similar for T(x = L (-dx), t > 0) = T0
