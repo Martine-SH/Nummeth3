@@ -45,13 +45,13 @@ def inital_states(sigma, x):
 # We calculate the spatial derivative using finite differences:
 # [d^2T/dx^2]_(n,i) = (T_(n,i+1) - 2T_(n,i) + T_(n, i - 1)) / (Δx)^2
 def dpsi_dt_CD(psi_n, nx, x, dx, h , m, omega):
-    d2psidx2 = np.zeros(nx)
+    d2psidx2 = np.zeros(nx, dtype=complex)
     d2psidx2[1:-1] = (psi_n[2:] - 2 * psi_n[1:-1] + psi_n[:-2]) / dx**2 
     # 
-    
     # We fix Psi(x = 0, t > 0) = psi1, so that derivative just stays 0
     # Similar for Psi(x = L (-dx), t > 0) = psi0
-    dpsidt = 1j * h / (2 * m) * d2psidx2 - 1j * m * omega**2 * x**2 * psi_n[1:-1] / (2 * h)
+    
+    dpsidt = 1j * h / (2 * m) * d2psidx2 - 1j * m * omega**2 * x**2 * psi_n / (2 * h)
     return dpsidt
 
 #%% Defining integrating functions 
