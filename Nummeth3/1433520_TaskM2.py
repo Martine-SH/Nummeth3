@@ -8,20 +8,20 @@ Part 3, Task M1
 import numpy as np
 import matplotlib.pyplot as plt
 
-#%% Defining physical constanus
+#%% Defining physical constants
 class PhysConstants:
     def __init__(self):
         self.y0     = 1       # no-signal value #??? Why is this here?
-        self.c      = 5       # advection velocity (m/s)
+        self.c      = 1       # advection velocity (m/s)
         self.Ag     = 0.5       # Gaussian wave amplitude ()
         self.sigmag = 0.2        # Gaussian wave width (m)
         self.Anot   = 0.5       # Molenkamp triangle height ()
-        self.W      = 0.2       # Molenkamp triangle width (m)
+        self.W      = 0.6       # Molenkamp triangle width (m)
 # you may add your own constants if you wish
 
 #%% Theoretical solutions/Initialisations
 
-# Calculates u(x, t) for all x at fixed t
+# Calculates u(x, t) for all x at fixed t (i.e. xs is an array, t a scalar)
 # Can also be used for Initialisations
 def u_Gauss(xs, t, L, c, Ag, sigmag):
     u = Ag * np.exp(-((xs - c * t - L/2) / sigmag)**2)
@@ -86,16 +86,15 @@ def Leap_frog(us, nx, dx, dt, c, du_dt):
 # The following three functions just need Tn, and "simply" return T_new (= T_(n+1))
 # TODO: write Crank_Nicholson function
 def Crank_Nicholson(un, nx, dx, dt, c, du_dt):
-    # Note: I accidewntally swithced the names of A and B compafred to the LN
     C1 = c * dt / (4 * dx)
-    A = np.eye(nx) * (1 - C1) + np.eye(nx, k = -1) * C1 + np.eye(nx, k = 1) * C1
+    A = np.eye(nx) - np.eye(nx, k = -1) * C1 + np.eye(nx, k = 1) * C1
     A[0, 0], A[0,1] = 1, 0
     A[-1,-2], A[-1, -1] = 0, 1
-    B = np.eye(nx) * (1 + C1) - np.eye(nx, k = -1) * C1 - np.eye(nx, k = 1) * C1
+    B = np.eye(nx) + np.eye(nx, k = -1) * C1 - np.eye(nx, k = 1) * C1
     B[0, 0], B[0,1] = 1, 0
     B[-1, -2], B[-1, -1] = 0, 1
-    B_inv = np.linalg.inv(B)
-    C = B_inv @ A
+    A_inv = np.linalg.inv(A)
+    C = A_inv @ B
     u_new = np.dot(C, un)
     return u_new
         
@@ -166,7 +165,7 @@ def Task2_caller(L, nx, TotalTime, dt, TimeSteppingMethod, Initialisation,
         un = u_Gauss(Xaxis, 0, L, PhysC.c, PhysC.Ag, PhysC.sigmag)
     elif Initialisation == "Molenkamp":
         Result_theory = Theory_Molenkamp()
-        un = u_Molenkamp(Xaxis, 0, nx, dx, L, PhysC.A0, W)
+        un = u_Molenkamp(Xaxis, 0, nx, dx, L, PhysC.A0, PhysC.W)
     # The theoretical solution can just be calculated directly for every pair (x, t)
     # un is the wave at t = 0. Throughout the simulation, un will be u(t = t_n).
     
@@ -176,15 +175,7 @@ def Task2_caller(L, nx, TotalTime, dt, TimeSteppingMethod, Initialisation,
     if TimeSteppingMethod == "Theory":
         return Time, Xaxis, Result_theory, Var
         
-    else:
-        Result = np.zeros((nt, nx)) 
-        # This will be the array of temperatures, where in the end
-        # Results[n,i] will give T at time t_n (= n*dt) and location x_i (= i*dx)        
-        # These are the temperatures at t = 0, and will during the simulation
-        # be the temperatures t = t_n     
-        Result[0] = un.copy()
-
-    
+    else:    
         Result = np.zeros((nt, nx)) 
         # This will be the array of our values for u, where in the end
         # Results[n,i] will give u at time t_n (= n*dt) and location x_i (= i*dx)        
@@ -231,7 +222,7 @@ L = 1 # m
 nx = 10**2
 dx = L / nx # m
 # TODO Now we use the fact that we fix the ratio(s) c * Δt / Δx
-ratios = np.array([0.25]) 
+ratios = np.array([0.25])
 # From that we calculate the Δt's
 dts = ratios * dx / PhysConstants().c
 # TODO Now let's say we want to consider a ... amount timesteps also
@@ -243,7 +234,7 @@ TotalTime = nt * dts
 All_Results = {} # We create a dictionary to add all our simulation results to
 for j, dt in enumerate(dts):
     for DiffMethod in ["CD"]: # TODO add SP
-        for TimeSteppingMethod in ["Theory", "EF"]: #, "RK4", "CN"]: # , "AB", "LF",]:
+        for TimeSteppingMethod in ["Theory", "LF"]: #, "EF"]: #, "RK4", "CN"]: # , "AB", "LF",]:
             for Initialisation in ["GaussWave"]: #, "Molenkamp"]:
                 Time, Xaxis, Result, Var = Task2_caller(L, nx, TotalTime[j], dt, 
                                                    TimeSteppingMethod, Initialisation,
@@ -255,11 +246,8 @@ for j, dt in enumerate(dts):
                                                  "Variances": Var
                                                  }
 
-def u_x_plot(Results, Ng, nt, Init): #, TSM = False, dt = False, DM = False):
-    # dt, nt and DiffMethod are the same variables as before
-    # If no input is given for dt or DM, the plot is made for all different 
-    # possibilities. If a sepcific value/function is given, only that one is displayed.
-    # Currently, only one of these inputs can be given unfortunately. Working on it.
+def u_x_plot(Results, Ng, nt, Init, dtg): #, TSM = False, dt = False, DM = False):
+    # dt, nt and DiffMethod are the same variables as before.
     # Ng is the number of graphs the function should make
     # Results should be a dictionary featuring the Results of the simulations
     # in principal this will always be All_Results
@@ -272,8 +260,8 @@ def u_x_plot(Results, Ng, nt, Init): #, TSM = False, dt = False, DM = False):
     # 0 to nt - 1
     for ng in ngs:
         plt.figure()
-        for (TimeSteppingMethod, dtg, DiffMethod, Initialisation), Result in Results.items():
-            if Initialisation == Init:
+        for (TimeSteppingMethod, dt, DiffMethod, Initialisation), Result in Results.items():
+            if Initialisation == Init and dt == dtg:
                 Xaxis = Result["Xaxis"]
                 us = Result["Wave"]
                 tg = Time[int(ng)]
@@ -283,17 +271,19 @@ def u_x_plot(Results, Ng, nt, Init): #, TSM = False, dt = False, DM = False):
                                                   f'$Δt$ = {dtg:.2e} s')
                 plt.title(f'$u(t = {tg:.2e}, x)$, Init = {Initialisation}')
         plt.xlim(0, L)
-        # plt.ylim(PhysConstants().T0, PhysConstants().T1)
-        plt.grid()
+        plt.ylim(0, )
+        plt.grid(PhysConstants().Ag)
         plt.xlabel('$x$ (m)')
         plt.ylabel('$u$')
         plt.legend()
         plt.show()
 
-u_x_plot(All_Results, 3, nt, Init = "GaussWave")
+
+for dt in dts:
+    u_x_plot(All_Results, 5, nt, "GaussWave", dt)
 
 
-#%% Plotting var
+# %% Plotting var
 
 def plot_Var(Results):
     plt.figure()
@@ -311,3 +301,21 @@ def plot_Var(Results):
     plt.show()
         
 plot_Var(All_Results)
+
+#%%
+"""
+At L = 1, nx = 100, ratio = 0.25, 
+        self.y0     = 1       # no-signal value #??? Why is this here?
+        self.c      = 1       # advection velocity (m/s)
+        self.Ag     = 0.5       # Gaussian wave amplitude ()
+        self.sigmag = 0.2        # Gaussian wave width (m)
+        self.Anot   = 0.5       # Molenkamp triangle height ()
+        self.W      = 0.2       # Molenkamp triangle width (m)
+Below all for GaussWave:
+CN doesn't seem to work well currently. Does some weird stuff where the wave
+reappears. Weirdly the variance plateaus about halfway through tho.
+RK4 does not work at given parameters. Also doesn't at smaller ratios
+LF explodes at the low ratios I tried for RK4.
+I think I need to reeavluate the boundary conditions, as now by default both 
+ends have a constant value of zero, but that obvioulsy fucks with it all...
+"""
