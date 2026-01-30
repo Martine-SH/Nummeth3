@@ -15,7 +15,7 @@ class PhysConstants:
         #all was set to zero 
         self.h      = 1.0545718 *10**-34   #reduced Planck constant J*s/rad 
         self.m      = 9.11 * 10**-31 #mass electron in kilogram (kg)
-        self.sigma  = 10 **-18 # width of wavefunction (given value)
+        self.sigma  = 1 / (10 **-18) # m^-2 width of wavefunction (given value)
         self.omega  = 10**14  # width of well (chosen value can be changed)
 
 
@@ -26,7 +26,8 @@ class PhysConstants:
 #%%
 def inital_states(sigma, x):
     A = (2*sigma/np.pi)**0.25
-    psi0 = A*np.exp(-2*sigma*x**2)
+    psi0 = A*np.exp(-sigma*x**2)
+
     return psi0
     
 #%% Defining a functions that calculates dT/dt
@@ -38,8 +39,8 @@ def dpsi_dt_CD(psi_n, nx, x, dx, h , m, omega):
     d2psidx2 = np.zeros(nx, dtype=complex)
     d2psidx2[1:-1] = (psi_n[2:] - 2 * psi_n[1:-1] + psi_n[:-2]) / dx**2 
     
-    #for big values at the boundaries
-    d2psidx2[0], d2psidx2[-1] = 0, 0 
+    #for big values at the boundaries/safeguard
+    #d2psidx2[0], d2psidx2[-1] = 0, 0 
     # We fix Psi(x = 0, t > 0) = psi1, so that derivative just stays 0
     # Similar for Psi(x = L (-dx), t > 0) = psi0
     dpsidt = np.zeros(nx, dtype=complex)
@@ -143,7 +144,7 @@ def Task3_caller(L, nx, TotalTime, dt, TimeSteppingMethod,
     
     Time = np.arange(0, TotalTime, dt) 
     # array of evenly spaced times with requested difference dt
-    Xaxis = np.linspace(0, L, nx, endpoint = False) 
+    Xaxis = np.linspace(-L/2, L/2, nx, endpoint = False) 
     # array of evenly spaced loactions with requested length nx
     nt = len(Time) 
     # number of timesteps we consider (NB if we integrate until t_N = Ndt, 
@@ -200,14 +201,15 @@ def Task3_caller(L, nx, TotalTime, dt, TimeSteppingMethod,
 
 #%% Setting paramaters for simulation
 #  TODO Let's for now consider a ... m rod split into ... equal parts, such that:
-L = 100*np.sqrt(PhysConstants().h / (PhysConstants().m * PhysConstants().omega))# m
+L = np.sqrt(PhysConstants().h / (PhysConstants().m * PhysConstants().omega))# m
 nx = 10**2
 dx = L / nx # m
 # TODO Now we use the fact that we fix the ratio(s) κ * Δt / Δx^2
-ratios = np.array([0.25])
+ratios = np.array([0.5])
 # ratios = np.linspace(0.25, 0.5, num = 6)
 # From that we calculate the Δt's
 dts = ratios * PhysConstants().m * dx**2 / PhysConstants().h
+#dts = ratios *PhysConstants().omega
 # TODO Now let's say we want to consider a ... amount timesteps also
 nt = 10**3
 TotalTime = nt * dts
@@ -219,7 +221,7 @@ All_Results = {} # We create a dictionary to add all our simulation results to
 # T_th = np.array([])
 for j, dt in enumerate(dts):
     for DiffMethod in ["CD"]: # TODO add SP
-        for TimeSteppingMethod in ["EF", "AB", "RK4", "CN"]: #, "LF", "CN"]:
+        for TimeSteppingMethod in ["AB", "RK4", "CN"]: #, "LF", "CN"]:
             Time, Xaxis, Result, norm_list = Task3_caller(L, nx, TotalTime[j], dt,
                                                TimeSteppingMethod, DiffMethod)
             All_Results[(TimeSteppingMethod, dt, DiffMethod)] = {
@@ -293,7 +295,7 @@ def Psi_x_plot(Results, Ng, nt, TSM = False, dt = False, DM = False):
                                                   f'$Δt$ = {dtg:.2e} s')
                 plt.title(f'$Psi(t = {tg:.2e}, x)$, DM = {DM}')
         
-        plt.xlim(0, L)
+        plt.xlim(-L/2, L/2)
         # plt.ylim(PhysConstants().T0, PhysConstants().T1)
         plt.grid()
         plt.xlabel('$x$ (m)')
@@ -314,12 +316,30 @@ def plot_norm(Results):
         plt.ylabel("$norm$")
         plt.legend()
         plt.grid()
-        plt.ylim(-0.025, 0.5)
+        #plt.ylim(-0.025, 0.5)
         plt.xlim(0, Time[-1])
     plt.show()
         
 plot_norm(All_Results)
 
+#%% Check function for wavefunctions
+def plot_psi0(Results):
+    plt.figure()
+    for (TimeSteppingMethod, dt, DiffMethod), Result in Results.items():
+        Time = Result["Time"]
+        Norm = Result["norm"]
+        Xaxis = Result["Xaxis"]
+        Psi = Result["Wavefunctions"]
+        plt.plot(Xaxis, Psi[0], label = f'TMS = {TimeSteppingMethod}, $Δt$ = {dt} s')
+        plt.xlabel("$X$ (s)")
+        plt.ylabel("$Psi$")
+        plt.legend()
+        plt.grid()
+        #plt.ylim(-0.025, 0.5)
+        #plt.xlim()
+    plt.show()
+        
+plot_psi0(All_Results)
 #%%
 """
 At l= 100 * np.sqrt(PhysConstants().h / (PhysConstants().m * PhysConstants().omega))
