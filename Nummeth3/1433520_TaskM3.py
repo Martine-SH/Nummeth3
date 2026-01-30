@@ -200,7 +200,7 @@ def Task3_caller(L, nx, TotalTime, dt, TimeSteppingMethod,
 
 #%% Setting paramaters for simulation
 #  TODO Let's for now consider a ... m rod split into ... equal parts, such that:
-L = 10 * np.sqrt(PhysConstants().h / (PhysConstants().m * PhysConstants().omega))# m
+L = 100*np.sqrt(PhysConstants().h / (PhysConstants().m * PhysConstants().omega))# m
 nx = 10**2
 dx = L / nx # m
 # TODO Now we use the fact that we fix the ratio(s) κ * Δt / Δx^2
@@ -208,7 +208,6 @@ ratios = np.array([0.25])
 # ratios = np.linspace(0.25, 0.5, num = 6)
 # From that we calculate the Δt's
 dts = ratios * PhysConstants().m * dx**2 / PhysConstants().h
-
 # TODO Now let's say we want to consider a ... amount timesteps also
 nt = 10**3
 TotalTime = nt * dts
@@ -320,3 +319,13 @@ def plot_norm(Results):
     plt.show()
         
 plot_norm(All_Results)
+
+#%%
+"""
+At l= 100 * np.sqrt(PhysConstants().h / (PhysConstants().m * PhysConstants().omega))
+and all the other parameters nothing is very stable. Due to the large numbers used.
+At ratios 0.25 and 0.5 CN is the most stable all the others fail, but at 1 it also is unstable
+Furthermore the value also depends on l if we devide it by 100. RK4 is stable until a ratio of one
+It also can be argued that you need to look at a timescale dependend on omega
+Because now you miss most of the fluctuations.
+"""
