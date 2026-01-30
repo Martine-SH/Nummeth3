@@ -316,7 +316,6 @@ def plot_norm(Results):
         plt.ylabel("$norm$")
         plt.legend()
         plt.grid()
-        #plt.ylim(-0.025, 0.5)
         plt.xlim(0, Time[-1])
     plt.show()
         

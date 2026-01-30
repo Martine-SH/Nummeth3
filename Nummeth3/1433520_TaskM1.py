@@ -212,13 +212,13 @@ def Task1_caller(L, nx, TotalTime, dt, TimeSteppingMethod,
             T_prev = Tn.copy()
             Tn = Euler_forward(Tn, nx, dx, dt, PhysC.Kappa, dT_dt)
             Result[1] = Tn.copy()
-            Var[1] = np.var(Tn - Result_theory[1], mean = 0).copy()
+            Var[1] = np.std(Tn - Result_theory[1], mean = 0).copy()
             
             for n in range(2, nt):
                 [T_prev, Tn] = integrator([T_prev, Tn], nx, dx, dt,
                                           PhysC.Kappa, dT_dt)
                 Result[n] = Tn.copy()
-                Var[n] = np.var(Tn - Result_theory[n], mean = 0).copy()
+                Var[n] = np.std(Tn - Result_theory[n], mean = 0).copy()
         else:        
             if TimeSteppingMethod == "EF":
                 integrator = Euler_forward
@@ -230,7 +230,7 @@ def Task1_caller(L, nx, TotalTime, dt, TimeSteppingMethod,
             for n in range(1, nt):
                 Tn = integrator(Tn, nx, dx, dt, PhysC.Kappa, dT_dt)
                 Result[n] = Tn.copy()
-                Var[n] = np.var(Tn - Result_theory[n], mean = 0).copy()
+                Var[n] = np.std(Tn - Result_theory[n], mean = 0).copy()
                 
         return Time, Xaxis, Result, Var
 
@@ -240,7 +240,7 @@ L = 1 # m
 nx = 10**2
 dx = L / nx # m
 # TODO Now we use the fact that we fix the ratio(s) κ * Δt / Δx^2
-ratios = np.array([0.25])
+ratios = np.array([0.5])
 # ratios = np.linspace(0.25, 0.5, num = 6)
 # From that we calculate the Δt's
 dts = ratios * dx**2 / PhysConstants().Kappa
@@ -254,7 +254,7 @@ All_Results = {} # We create a dictionary to add all our simulation results to
 # T_th = np.array([])
 for j, dt in enumerate(dts):
     for DiffMethod in ["CD"]: # TODO add SP
-        for TimeSteppingMethod in ["Theory", "EF", "AB", "RK4", "CN"]: #, "LF", "CN"]:
+        for TimeSteppingMethod in ["Theory", "EF", "RK4", "CN", "AB"]: #, "LF", "CN"]:
             Time, Xaxis, Result, Var = Task1_caller(L, nx, TotalTime[j], dt,
                                                TimeSteppingMethod, DiffMethod)
             All_Results[(TimeSteppingMethod, dt, DiffMethod)] = {
@@ -338,20 +338,23 @@ def T_x_plot(Results, Ng, nt, TSM = False, dt = False, DM = False):
         plt.legend()
         plt.show()
 
-# for dtg in dts:
-#     T_x_plot(All_Results, 1, nt, dt = dtg)
+for dtg in dts:
+    T_x_plot(All_Results, 1, nt, dt = dtg)
 #%%
 def plot_Var(Results):
     plt.figure()
     for (TimeSteppingMethod, dt, DiffMethod), Result in Results.items():
-        Time = Result["Time"]
-        Variances = Result["Variances"]
-        plt.plot(Time, Variances, label = f'TMS = {TimeSteppingMethod}, $Δt$ = {dt} s')
-        plt.xlabel("$t$ (s)")
-        plt.ylabel("$σ^2$")
-        plt.legend()
-        plt.grid()
-        plt.xlim(0, Time[-1])
+        if TimeSteppingMethod != "Theory":
+            Time = Result["Time"]
+            Variances = Result["Variances"]
+            plt.plot(Time, Variances, label = f'TSM = {TimeSteppingMethod}')
+            #plt.semilogy(Time, Variances, label = f'TMS = {TimeSteppingMethod}, $Δt$ = {dt} s')
+            plt.xlabel("$t$ (s)")
+            plt.ylabel("$σ$ (K)")
+            plt.legend()
+            plt.xlim(Time[20], )
+            plt.ylim(-0.002, 0.15)
+    plt.grid()
     plt.show()
         
 plot_Var(All_Results)
